@@ -167,7 +167,6 @@ public final class UnifiedDiffReader {
     }
     
     private void processOnlyIn(MatchResult match, String line) {
-        initFileIfNecessary();
         UnifiedDiffFile file = new UnifiedDiffFile();
         file.setDiffCommand(line);
         data.addFile(file);
