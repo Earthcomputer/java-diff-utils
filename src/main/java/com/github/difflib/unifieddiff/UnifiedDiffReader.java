@@ -46,6 +46,7 @@ public final class UnifiedDiffReader {
         new UnifiedDiffLine(true, "^index\\s[\\da-zA-Z]+\\.\\.[\\da-zA-Z]+(\\s(\\d+))?$", this::processIndex),
         new UnifiedDiffLine(true, "^---\\s", this::processFromFile),
         new UnifiedDiffLine(true, "^\\+\\+\\+\\s", this::processToFile),
+        new UnifiedDiffLine(true, "^Only in\\s", this::processOnlyIn),
         new UnifiedDiffLine(false, UNIFIED_DIFF_CHUNK_REGEXP, this::processChunk),
         new UnifiedDiffLine("^\\s+", this::processNormalLine),
         new UnifiedDiffLine("^-", this::processDelLine),
@@ -163,6 +164,13 @@ public final class UnifiedDiffReader {
             originalTxt.clear();
             revisedTxt.clear();
         }
+    }
+    
+    private void processOnlyIn(MatchResult match, String line) {
+        initFileIfNecessary();
+        UnifiedDiffFile file = new UnifiedDiffFile();
+        file.setDiffCommand(line);
+        data.addFile(file);
     }
 
     private void processNormalLine(MatchResult match, String line) {
