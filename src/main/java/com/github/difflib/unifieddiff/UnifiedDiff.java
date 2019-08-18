@@ -44,7 +44,7 @@ public final class UnifiedDiff {
     }
 
     public List<UnifiedDiffFile> getFiles() {
-        return Collections.unmodifiableList(files);
+        return files;
     }
 
     void setTailTxt(String tailTxt) {
