@@ -106,6 +106,9 @@ public final class UnifiedDiffReader {
     }
 
     private static final Logger LOG = Logger.getLogger(UnifiedDiffReader.class.getName());
+    static {
+        LOG.setLevel(Level.WARNING);
+    }
 
     public static UnifiedDiff parseUnifiedDiff(InputStream stream) throws IOException, UnifiedDiffParserException {
         UnifiedDiffReader parser = new UnifiedDiffReader(new BufferedReader(new InputStreamReader(stream)));
