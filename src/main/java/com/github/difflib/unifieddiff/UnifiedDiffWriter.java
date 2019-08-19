@@ -43,6 +43,7 @@ public class UnifiedDiffWriter {
         }, contextSize);
     }
 
+    // Pass null for originalLinesProvider to compute original lines. MUST have 0 context
     public static void write(UnifiedDiff diff, Function<String, List<String>> originalLinesProvider, Consumer<String> writer, int contextSize) throws IOException {
         writer.accept(diff.getHeader());
 
@@ -61,7 +62,7 @@ public class UnifiedDiffWriter {
                     writer.accept("+++ " + file.getToFile());
                 }
 
-                List<String> originalLines = originalLinesProvider.apply(file.getFromFile());
+                List<String> originalLines = originalLinesProvider == null ? null : originalLinesProvider.apply(file.getFromFile());
 
                 List<AbstractDelta<String>> deltas = new ArrayList<>();
 
@@ -76,7 +77,7 @@ public class UnifiedDiffWriter {
                         // position.
                         // And if it is, add it to the current set
                         AbstractDelta<String> nextDelta = patchDeltas.get(i);
-                        if ((position + delta.getSource().size() + contextSize) >= (nextDelta
+                        if (originalLines != null && (position + delta.getSource().size() + contextSize) >= (nextDelta
                                 .getSource().getPosition() - contextSize)) {
                             deltas.add(nextDelta);
                         } else {
@@ -136,7 +137,7 @@ public class UnifiedDiffWriter {
             revTotal++;
         }
         // output the first Delta
-        getDeltaText(txt -> buffer.add(txt), curDelta);
+        getDeltaText(txt -> buffer.add(txt), curDelta, origLines == null);
         origTotal += curDelta.getSource().getLines().size();
         revTotal += curDelta.getTarget().getLines().size();
 
@@ -152,7 +153,7 @@ public class UnifiedDiffWriter {
                 origTotal++;
                 revTotal++;
             }
-            getDeltaText(txt -> buffer.add(txt), nextDelta); // output the Delta
+            getDeltaText(txt -> buffer.add(txt), nextDelta, origLines == null); // output the Delta
             origTotal += nextDelta.getSource().getLines().size();
             revTotal += nextDelta.getTarget().getLines().size();
             curDelta = nextDelta;
@@ -176,6 +177,9 @@ public class UnifiedDiffWriter {
             writer.accept(txt);
         });
     }
+    
+    private static final com.github.difflib.text.DiffRowGenerator ROW_GENERATOR =
+        com.github.difflib.text.DiffRowGenerator.create().reportLinesUnchanged(true).build();
 
     /**
      * getDeltaText returns the lines to be added to the Unified Diff text from the Delta parameter
@@ -184,12 +188,48 @@ public class UnifiedDiffWriter {
      * @return list of String lines of code.
      * @author Bill James (tankerbay@gmail.com)
      */
-    private static void getDeltaText(Consumer<String> writer, AbstractDelta<String> delta) {
-        for (String line : delta.getSource().getLines()) {
-            writer.accept("-" + line);
-        }
-        for (String line : delta.getTarget().getLines()) {
-            writer.accept("+" + line);
+    private static void getDeltaText(Consumer<String> writer, AbstractDelta<String> delta, boolean split) {
+        if (split) {
+            try {
+                List<com.github.difflib.text.DiffRow> rows = ROW_GENERATOR.generateDiffRows(delta.getSource().getLines(), delta.getTarget().getLines());
+                int changeIdx = -1;
+                for (int i = 0; i < rows.size(); i++) {
+                    com.github.difflib.text.DiffRow row = rows.get(i);
+                    if (changeIdx != -1 && row.getTag() != com.github.difflib.text.DiffRow.Tag.CHANGE) {
+                        for (int j = changeIdx; j < i; j++)
+                            writer.accept("+" + rows.get(j).getNewLine());
+                        changeIdx = -1;
+                    }
+                    switch (row.getTag()) {
+                        case EQUAL:
+                            writer.accept(" " + row.getOldLine());
+                            break;
+                        case INSERT:
+                            writer.accept("+" + row.getNewLine());
+                            break;
+                        case DELETE:
+                            writer.accept("-" + row.getOldLine());
+                            break;
+                        case CHANGE:
+                            if (changeIdx == -1) changeIdx = i;
+                            writer.accept("-" + row.getOldLine());
+                            break;
+                    }
+                }
+                if (changeIdx != -1) {
+                    for (int j = changeIdx; j < rows.size(); j++)
+                        writer.accept("+" + rows.get(j).getNewLine());
+                }
+            } catch (com.github.difflib.algorithm.DiffException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            for (String line : delta.getSource().getLines()) {
+                writer.accept("-" + line);
+            }
+            for (String line : delta.getTarget().getLines()) {
+                writer.accept("+" + line);
+            }
         }
     }
 
