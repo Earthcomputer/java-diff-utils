@@ -94,6 +94,8 @@ public class UnifiedDiffWriter {
                 }
                 // don't forget to process the last set of Deltas
                 processDeltas(writer, originalLines, deltas, contextSize);
+            } else if (file.getDiffCommand() != null && file.getDiffCommand().startsWith("Only in")) {
+                writer.accept(file.getDiffCommand());
             }
 
         }
