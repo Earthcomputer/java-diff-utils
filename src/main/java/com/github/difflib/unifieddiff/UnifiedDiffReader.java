@@ -67,9 +67,11 @@ public final class UnifiedDiffReader {
         boolean header = true;
         String headerTxt = "";
         String tailTxt = "";
+        boolean hasTail = false;
         while (READER.ready()) {
             String line = READER.readLine();
             if (line.matches("--\\s*")) {
+                hasTail = true;
                 break;
             } else {
                 LOG.log(Level.INFO, "parsing line {0}", line);
@@ -93,7 +95,8 @@ public final class UnifiedDiffReader {
         while (READER.ready()) {
             tailTxt += READER.readLine() + "\n";
         }
-        data.setTailTxt(tailTxt);
+        if (!tailTxt.isEmpty() || hasTail)
+            data.setTailTxt(tailTxt);
 
         return data;
     }
